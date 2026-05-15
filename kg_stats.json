@@ -1,0 +1,7 @@
+{
+  "num_triples": 15138,
+  "num_drugs": 5017,
+  "num_genes": 2324,
+  "avg_genes_per_drug": 3.0173,
+  "avg_drugs_per_gene": 6.5138
+}
