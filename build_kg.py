@@ -5,7 +5,7 @@ import pickle
 import random
 
 
-TSV_PATH = "ChG-Miner_miner-chem-gene.tsv"
+TSV_PATH = "data/ChG-Miner_miner-chem-gene.tsv"
 
 
 def parse(path: str) -> pd.DataFrame:
@@ -87,16 +87,16 @@ def extract_subgraph(G: nx.DiGraph, triples: pd.DataFrame, n_pairs: int = 3) -> 
 
 
 def save(triples: pd.DataFrame, G: nx.DiGraph, stats: dict) -> None:
-    triples.to_csv("kg_triples.tsv", sep="\t", index=False)
-    print("[save] kg_triples.tsv")
+    triples.to_csv("data/kg_triples.tsv", sep="\t", index=False)
+    print("[save] data/kg_triples.tsv")
 
     with open("kg_graph.gpickle", "wb") as f:
         pickle.dump(G, f, pickle.HIGHEST_PROTOCOL)
     print("[save] kg_graph.gpickle")
 
-    with open("kg_stats.json", "w", encoding="utf-8") as f:
+    with open("data/kg_stats.json", "w", encoding="utf-8") as f:
         json.dump(stats, f, indent=2, ensure_ascii=False)
-    print("[save] kg_stats.json")
+    print("[save] data/kg_stats.json")
 
 
 def main():
