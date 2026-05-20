@@ -12,6 +12,12 @@ env/
 *.pt
 *.pth
 *.ckpt
+*.npy
+
+# TransE 학습 산출물 (pretrained/ 하위 내용만 무시, 디렉토리 자체는 추적)
+pretrained/*
+!pretrained/.gitkeep
+transe_*.json
 
 # Logs & outputs
 *.log
