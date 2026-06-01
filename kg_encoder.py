@@ -1,5 +1,3 @@
-from typing import Optional
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -47,13 +45,14 @@ class RGCNLayer(nn.Module):
             return {"msg": torch.bmm(x.unsqueeze(1), w).squeeze(1)}
 
         def reduce_func(nodes):
-            agg = nodes.mailbox["msg"].sum(dim=1)
-            self_loop = nodes.data[input_key] @ self.self_loop_weight
-            return {"h": agg + self_loop}
+            return {"h": nodes.mailbox["msg"].sum(dim=1)}
 
         g.update_all(msg_func, reduce_func)
 
-        h = g.ndata["h"]
+        # Self-loop applied outside reduce so nodes with no incoming edges
+        # (e.g. drug anchors in a drug→gene KG) also receive W_self * h.
+        # DGL zero-initialises 'h' for such nodes after update_all.
+        h = g.ndata["h"] + g.ndata[input_key] @ self.self_loop_weight
         if self.activation:
             h = self.activation(h)
         if self.dropout:
@@ -73,10 +72,10 @@ class KGEncoder(nn.Module):
     feat layout produced by extract_subgraph._nx_to_dgl().
 
     Output per graph:
-        h_A    = repr[drug_a node].reshape(-1)              [num_layers * hidden_dim]
-        h_B    = repr[drug_b node].reshape(-1)              [num_layers * hidden_dim]
-        h_GSub = mean(repr[gene nodes], dim=0).reshape(-1)  [num_layers * hidden_dim]
-        H_KG   = cat([h_A, h_B, h_GSub])                   [3 * num_layers * hidden_dim]
+        h_A    = repr[drug_a node].reshape(-1)                          [num_layers * hidden_dim]
+        h_B    = repr[drug_b node].reshape(-1)                          [num_layers * hidden_dim]
+        h_GSub = W_Sub(mean(repr[all nodes], dim=0)).reshape(-1)        [num_layers * hidden_dim]
+        H_KG   = cat([h_A, h_B, h_GSub])                               [3 * num_layers * hidden_dim]
 
     Single graph  → shape [3 * num_layers * hidden_dim].
     Batched graph → shape [batch_size, 3 * num_layers * hidden_dim].
@@ -88,7 +87,7 @@ class KGEncoder(nn.Module):
 
     def __init__(
         self,
-        emb_dim: int = 64,
+        emb_dim: int = 0,
         k: int = 1,
         hidden_dim: int = 64,
         num_rels: int = 1,
@@ -108,14 +107,14 @@ class KGEncoder(nn.Module):
             self.layers.append(
                 RGCNLayer(hidden_dim, hidden_dim, num_rels, F.relu, dropout)
             )
+        self.w_sub = nn.Linear(hidden_dim, hidden_dim, bias=False)
 
     def forward(self, g: dgl.DGLGraph) -> torch.Tensor:
         """Encode subgraph(s) into H_KG.
 
         Args:
-            g: Single or dgl.batch()-ed graph with ndata['feat'], ndata['id']
-               (long: 1=drug_a, 2=drug_b, 0=other), and optionally ndata['node_type']
-               (long: 0=drug, 1=gene).
+            g: Single or dgl.batch()-ed graph with ndata['feat'] and ndata['id']
+               (long: 1=drug_a, 2=drug_b, 0=other).
 
         Returns:
             H_KG: [3*num_layers*hidden_dim] for single graph,
@@ -127,18 +126,16 @@ class KGEncoder(nn.Module):
 
         repr_all = g.ndata["repr"]   # [total_N, num_layers, hidden_dim]
         id_all   = g.ndata["id"]     # [total_N]  long
-        nt_all   = g.ndata["node_type"] if "node_type" in g.ndata else None
 
         if g.batch_size == 1:
-            return self._extract_repr(repr_all, id_all, nt_all)
+            return self._extract_repr(repr_all, id_all)
 
         offset = 0
         results = []
         for n_nodes in g.batch_num_nodes().tolist():
             r   = repr_all[offset : offset + n_nodes]
             ids = id_all[offset : offset + n_nodes]
-            nt  = nt_all[offset : offset + n_nodes] if nt_all is not None else None
-            results.append(self._extract_repr(r, ids, nt))
+            results.append(self._extract_repr(r, ids))
             offset += n_nodes
 
         return torch.stack(results)  # [batch_size, 3*num_layers*hidden_dim]
@@ -147,23 +144,14 @@ class KGEncoder(nn.Module):
         self,
         repr: torch.Tensor,
         id_labels: torch.Tensor,
-        node_type: Optional[torch.Tensor],
     ) -> torch.Tensor:
         head_ids = (id_labels == 1).nonzero(as_tuple=False).squeeze(1)
         tail_ids = (id_labels == 2).nonzero(as_tuple=False).squeeze(1)
 
-        h_A = repr[head_ids].reshape(-1)
-        h_B = repr[tail_ids].reshape(-1)
-
-        if node_type is not None:
-            gene_mask = node_type == 1  # 0=drug, 1=gene
-            h_GSub = (
-                repr[gene_mask].mean(dim=0).reshape(-1)
-                if gene_mask.any()
-                else repr.mean(dim=0).reshape(-1)
-            )
-        else:
-            h_GSub = repr.mean(dim=0).reshape(-1)
+        h_A    = repr[head_ids].reshape(-1)
+        h_B    = repr[tail_ids].reshape(-1)
+        # Eq.5: W_Sub applied to mean over all G_Sub nodes (drug + gene), per layer
+        h_GSub = self.w_sub(repr.mean(dim=0)).reshape(-1)
 
         return torch.cat([h_A, h_B, h_GSub])
 
