@@ -14,8 +14,8 @@ def export(input_path: str, output_path: str) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Export KG graph pickle to GEXF format")
-    parser.add_argument("--input", default="kg_graph.gpickle", help="Input pickle file")
-    parser.add_argument("--output", default="kg_graph.gexf", help="Output GEXF file")
+    parser.add_argument("--input", default="graph/kg_graph.gpickle", help="Input pickle file")
+    parser.add_argument("--output", default="graph/kg_graph.gexf", help="Output GEXF file")
     args = parser.parse_args()
 
     export(args.input, args.output)

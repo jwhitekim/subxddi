@@ -13,7 +13,7 @@ import dgl
 _TRANSE_CACHE: dict = {}
 
 
-def load_kg(path: str = "kg_graph.gpickle") -> nx.DiGraph:
+def load_kg(path: str = "graph/kg_graph.gpickle") -> nx.DiGraph:
     with open(path, "rb") as f:
         return pickle.load(f)
 

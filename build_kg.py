@@ -90,9 +90,9 @@ def save(triples: pd.DataFrame, G: nx.DiGraph, stats: dict) -> None:
     triples.to_csv("data/kg_triples.tsv", sep="\t", index=False)
     print("[save] data/kg_triples.tsv")
 
-    with open("kg_graph.gpickle", "wb") as f:
+    with open("graph/kg_graph.gpickle", "wb") as f:
         pickle.dump(G, f, pickle.HIGHEST_PROTOCOL)
-    print("[save] kg_graph.gpickle")
+    print("[save] graph/kg_graph.gpickle")
 
     with open("data/kg_stats.json", "w", encoding="utf-8") as f:
         json.dump(stats, f, indent=2, ensure_ascii=False)
