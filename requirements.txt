@@ -1,0 +1,19 @@
+# PyTorch — install separately per CUDA version
+# https://pytorch.org/get-started/locally/
+# torch==2.7.0+cu126
+
+# Graph Neural Networks (DSN-DDI encoder)
+torch-geometric==2.7.0
+
+# KG-side GNN (kg_encoder.py uses DGL — CPU-only install recommended)
+# https://www.dgl.ai/pages/start.html
+# dgl==2.4.0  # pip install dgl -f https://data.dgl.ai/wheels/torch-2.7/repo.html
+
+# Chemistry
+rdkit>=2024.3.0
+
+# Data / ML
+numpy==1.26.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+networkx>=3.0
