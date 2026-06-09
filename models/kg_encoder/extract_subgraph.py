@@ -140,7 +140,7 @@ def _nx_to_dgl(
     src = [node_to_idx[u] for u, _ in sub_nx.edges()]
     dst = [node_to_idx[v] for _, v in sub_nx.edges()]
 
-    g = dgl.graph((src, dst))
+    g = dgl.graph((src, dst), num_nodes=len(node_list))
     g.ndata["feat"]      = torch.tensor(feat, dtype=torch.float)
     g.ndata["id"]        = torch.tensor(id_labels, dtype=torch.long)
     g.ndata["node_type"] = torch.tensor(node_types, dtype=torch.long)

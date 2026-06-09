@@ -60,6 +60,8 @@ def main():
                         help='Number of valid subgraphs per DGL encoder call')
     parser.add_argument('--max_pairs', type=int, default=None,
                         help='Limit pairs for smoke test (e.g. --max_pairs 100)')
+    parser.add_argument('--k', type=int, default=1,
+                        help='Number of hops for subgraph extraction')
     parser.add_argument('--kg_encoder_ckpt', type=str, default=None,
                         help='Path to KGEncoder state_dict (.pt). '
                              'If omitted, random init is used.')
@@ -114,7 +116,7 @@ def main():
 
     # ── Build KGEncoder ────────────────────────────────────────────────────
     emb_dim = emb_matrix.shape[1] if emb_matrix is not None else 0
-    encoder = kg_enc_mod.KGEncoder(emb_dim=emb_dim, k=1, hidden_dim=64, num_layers=2)
+    encoder = kg_enc_mod.KGEncoder(emb_dim=emb_dim, k=args.k, hidden_dim=64, num_layers=2)
     if args.kg_encoder_ckpt and os.path.exists(args.kg_encoder_ckpt):
         encoder.load_state_dict(torch.load(args.kg_encoder_ckpt, map_location='cpu'))
         print(f"\nKGEncoder 체크포인트 로드: {args.kg_encoder_ckpt}")
@@ -138,7 +140,7 @@ def main():
             continue
 
         result = extract_mod.extract_enclosing_subgraph(
-            G, drug_a, drug_b, k=1, emb_matrix=emb_matrix, e2id=e2id
+            G, drug_a, drug_b, k=args.k, emb_matrix=emb_matrix, e2id=e2id
         )
         if result is None:
             cache[(drug_a, drug_b)] = zero_tensor
