@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+from rdkit import RDLogger
+RDLogger.DisableLog('rdApp.*')
+
 import argparse
 import csv
 import json
@@ -15,6 +18,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
+from tqdm import tqdm
 import torch.nn.functional as F
 from PIL import Image, ImageDraw
 from rdkit import Chem
@@ -27,8 +31,7 @@ from torch_geometric.data import Batch, Data
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 EXPERIMENT_ROOT = SCRIPT_DIR.parent
-# experiments/0608/scripts/ → experiments/0608/ → experiments/ → subxddi/ (repo root)
-PROJECT_ROOT = EXPERIMENT_ROOT.parent.parent
+PROJECT_ROOT = EXPERIMENT_ROOT
 DRUGBANK_TEST_DIR = PROJECT_ROOT / "models" / "dsn_encoder"
 if str(DRUGBANK_TEST_DIR) not in sys.path:
     sys.path.insert(0, str(DRUGBANK_TEST_DIR))
@@ -36,7 +39,7 @@ if str(DRUGBANK_TEST_DIR) not in sys.path:
 import models_fusion as models  # noqa: E402
 
 
-PHASE_ORDER = ["sanity", "core", "decoder_ablation", "batch_ablation", "top_seed_robustness"]
+PHASE_ORDER = ["sanity", "core", "core2", "decoder_ablation", "batch_ablation", "top_seed_robustness"]
 FUSION_ORDER = [
     "cross_attention",
     "concat",
@@ -272,7 +275,7 @@ def parse_args():
     parser.add_argument("--batch-sizes", nargs="+", type=int, default=[128])
     parser.add_argument("--seeds", nargs="+", type=int, default=[0])
     parser.add_argument("--epochs", type=int, default=200)
-    parser.add_argument("--output-dir", default=str(EXPERIMENT_ROOT))
+    parser.add_argument("--output-dir", default=str(EXPERIMENT_ROOT / "outputs"))
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--background", action="store_true")
@@ -563,6 +566,9 @@ def completed_and_failed(output_dir):
 
 
 def run_phase(phase, args, output_dir):
+    if phase == "core2":
+        phase = "core"
+        
     runs = build_runs_for_phase(phase, args, output_dir)
     print(f"[PHASE_START] phase={phase} total_runs={len(runs)} dry_run={args.dry_run}", flush=True)
     if args.dry_run:
@@ -878,7 +884,8 @@ def train_epoch(
     total_batches = len(loader)
     split_start = time.time()
     use_attention_loss = attention_entropy_lambda > 0.0
-    for batch_index, batch in enumerate(loader, start=1):
+    pbar = tqdm(loader, desc=f"[{run_id}] epoch {epoch} train", leave=False)
+    for batch in pbar:
         if use_attention_loss:
             p_score, n_score, probs, targets, p_out, n_out = batch_scores(
                 model, batch, device, return_attention=True
@@ -904,13 +911,17 @@ def train_epoch(
         for key, value in attention_stats.items():
             stat_sums[key] += float(value)
             stat_counts[key] += 1
-        log_progress(
-            run_id, epoch, "train", batch_index, total_batches,
-            total_pos, split_start, progress_log_interval,
+        pbar.set_postfix(
+            loss=f"{loss.item():.4f}",
+            ddi=f"{ddi_loss.item():.4f}",
+            attn=f"{attention_loss.item():.4f}",
         )
+    pbar.close()
     print(
         f"[TRAIN_DONE] run_id={run_id} epoch={epoch} "
-        f"batches={total_batches} examples={total_pos} elapsed={time.time() - split_start:.1f}s",
+        f"batches={total_batches} examples={total_pos} "
+        f"avg_loss={total_loss / max(1, total_pos):.4f} "
+        f"elapsed={time.time() - split_start:.1f}s",
         flush=True,
     )
     extra = {

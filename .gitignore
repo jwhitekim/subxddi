@@ -24,6 +24,25 @@ kg/embeddings/
 # Experiment outputs
 results/
 outputs/
+checkpoints/
+plots/
+curves/
+history/
+reasoning/
+logs/
+
+# Run-specific experiment configs (configs/config.yaml 는 추적)
+configs/*.json
+
+# Result aggregation files
+all_results.csv
+all_results.jsonl
+best_ranking.csv
+phase_summary.csv
+summary_mean_std.csv
+
+# Process ID files
+*.pid
 
 # TransE 학습 산출물 (pretrained/ 하위 내용만 무시, 디렉토리 자체는 추적)
 pretrained/*

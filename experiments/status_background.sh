@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PHASE="${1:-core}"
-OUTPUT_DIR="${OUTPUT_DIR:-.}"
+OUTPUT_DIR="${OUTPUT_DIR:-outputs}"
 PID_FILE="${OUTPUT_DIR}/background_${PHASE}.pid"
 LOG_FILE="${OUTPUT_DIR}/logs/background_${PHASE}.log"
 

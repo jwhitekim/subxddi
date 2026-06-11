@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 PHASE="${1:-core}"
 shift || true
 EXTRA_ARGS=("$@")
-OUTPUT_DIR="${OUTPUT_DIR:-.}"
+OUTPUT_DIR="${OUTPUT_DIR:-outputs}"
 mkdir -p "${OUTPUT_DIR}/logs"
 
 PID_FILE="${OUTPUT_DIR}/background_${PHASE}.pid"
@@ -21,7 +21,7 @@ if [ -f "${PID_FILE}" ]; then
   fi
 fi
 
-setsid python -u scripts/run_0608_experiments.py \
+setsid nohup python -u experiments/run_0608_experiments.py \
   --phase "${PHASE}" \
   --output-dir "${OUTPUT_DIR}" \
   --resume \
